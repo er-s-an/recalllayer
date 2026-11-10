@@ -2,7 +2,7 @@
 # Pin sha to the public er-s-an/recalllayer commit after push; quote version.
 name: recalllayer
 repo: https://github.com/er-s-an/recalllayer
-# sha: "<FULL_40_CHAR_SHA>"
+sha: "29db9a2cc4421470195e1e735bd812b74971c990"
 version: "1.0.0"
 description: "Local-first layered agent memory (working / episodic / semantic) with FTS recall and retrieve-after-write tools."
 requires_hermes: ">=0.19.0"
