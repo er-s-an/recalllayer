@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RecallLayer — Live Memory Sandbox</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #121a2f;
+    --panel2: #182240;
+    --ink: #e8eefc;
+    --muted: #93a0c2;
+    --accent: #6ea8ff;
+    --accent2: #7dffb3;
+    --warn: #ffb86b;
+    --danger: #ff6b8a;
+    --line: #243056;
+    --shadow: 0 18px 50px rgba(0,0,0,.35);
+    --radius: 16px;
+    font-family: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--ink);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #1a2b55 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, #163528 0%, transparent 55%),
+      var(--bg);
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+  header { display:flex; gap:18px; align-items:flex-start; justify-content:space-between; margin-bottom: 22px; }
+  h1 { margin:0; font-size: 1.7rem; letter-spacing: -.02em; }
+  .sub { color: var(--muted); margin-top: 6px; line-height: 1.45; max-width: 58ch; }
+  .badge {
+    display:inline-flex; gap:8px; align-items:center; padding:8px 12px; border-radius:999px;
+    background: rgba(110,168,255,.12); border:1px solid rgba(110,168,255,.35); color:#cfe0ff; font-size:.85rem;
+  }
+  .grid { display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; }
+  @media (max-width: 900px){ .grid{ grid-template-columns:1fr; } header{flex-direction:column;} }
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--panel2));
+    border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px;
+  }
+  .card h2 { margin:0 0 12px; font-size:1rem; color:#d7e3ff; }
+  label { display:block; font-size:.78rem; color:var(--muted); margin: 10px 0 6px; text-transform:uppercase; letter-spacing:.06em; }
+  input, textarea, select {
+    width:100%; background:#0d1428; color:var(--ink); border:1px solid var(--line);
+    border-radius: 12px; padding: 11px 12px; font: inherit;
+  }
+  textarea { min-height: 88px; resize: vertical; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .row > * { flex:1; min-width: 120px; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top: 14px; }
+  button {
+    appearance:none; border:0; border-radius: 12px; padding: 11px 14px; font-weight:600;
+    cursor:pointer; color:#081018; background: linear-gradient(135deg, var(--accent), #9b7bff);
+  }
+  button.secondary { background:#223055; color:#dbe6ff; }
+  button.danger { background: linear-gradient(135deg, var(--danger), #ff8f6b); color:#1a0810; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 12px; }
+  .pill {
+    flex:1; min-width: 110px; background:#0d1428; border:1px solid var(--line); border-radius:14px; padding:12px;
+  }
+  .pill .n { font-size:1.4rem; font-weight:700; }
+  .pill .k { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; }
+  .list { display:flex; flex-direction:column; gap:10px; max-height: 520px; overflow:auto; padding-right:4px; }
+  .item {
+    background:#0d1428; border:1px solid var(--line); border-radius:14px; padding:12px;
+  }
+  .item .meta { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:6px; }
+  .tag {
+    font-size:.72rem; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:#c9d6f5;
+  }
+  .tag.semantic { border-color:#7dffb355; color:#b9ffd8; }
+  .tag.episodic { border-color:#6ea8ff55; color:#cfe0ff; }
+  .tag.working { border-color:#ffb86b55; color:#ffe0b5; }
+  .item .content { line-height:1.45; white-space:pre-wrap; }
+  .item .id { color:var(--muted); font-size:.75rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .flash {
+    margin-top:12px; padding:10px 12px; border-radius:12px; background:#102318; border:1px solid #24553a; color:#b9ffd8;
+    display:none;
+  }
+  .flash.show { display:block; }
+  .hint { color:var(--muted); font-size:.85rem; margin-top:8px; line-height:1.4; }
+  footer { margin-top: 18px; color: var(--muted); font-size:.82rem; }
+  code { color:#cfe0ff; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>RecallLayer</h1>
+        <div class="sub">
+          Live sandbox for a native Hermes <strong>Memory Provider</strong>.
+          Write → persist → recall recomputes immediately. Layers: working / episodic / semantic
+          (Mem0 · Zep · Letta remake on Hermes rails).
+        </div>
+      </div>
+      <div class="badge">local SQLite · FTS5 · zero API key</div>
+    </header>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Write memory</h2>
+        <label for="content">Fact / note</label>
+        <textarea id="content" placeholder="e.g. Caesar ships contest entries under GitHub er-s-an and prefers Asia/Shanghai time."></textarea>
+        <div class="row">
+          <div>
+            <label for="layer">Layer</label>
+            <select id="layer">
+              <option value="semantic" selected>semantic (durable)</option>
+              <option value="episodic">episodic (events)</option>
+              <option value="working">working (scratch)</option>
+            </select>
+          </div>
+          <div>
+            <label for="importance">Importance</label>
+            <input id="importance" type="number" min="0" max="1" step="0.1" value="0.7" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnRemember">Remember</button>
+          <button class="secondary" id="btnDemoFill">Fill sample facts</button>
+        </div>
+        <div class="hint">After writing, search with a different phrasing to prove retrieve-after-write. Update or forget and watch the list recompute.</div>
+        <div class="flash" id="flash"></div>
+
+        <h2 style="margin-top:22px">Search / recall</h2>
+        <label for="query">Query</label>
+        <input id="query" placeholder="timezone · GitHub · dark mode · deploy…" />
+        <div class="actions">
+          <button id="btnSearch">Search</button>
+          <button class="secondary" id="btnRefresh">Refresh list</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Store (live)</h2>
+        <div class="list" id="list"><div class="hint">Loading…</div></div>
+      </section>
+    </div>
+
+    <footer>
+      Hermes install: copy <code>recalllayer/</code> into <code>~/.hermes/plugins/recalllayer/</code>,
+      then <code>hermes config set memory.provider recalllayer</code>.
+      Author: Caesar / Jiachen Xie · GitHub er-s-an.
+    </footer>
+  </div>
+<script>
+const $ = (id) => document.getElementById(id);
+const flash = (msg) => { const el=$('flash'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'), 3200); };
+
+async function api(path, opts){
+  const res = await fetch(path, opts);
+  return res.json();
+}
+
+function renderStats(s){
+  const by = s.by_layer || {};
+  $('stats').innerHTML = ['semantic','episodic','working','total'].map(k=>{
+    const n = k==='total' ? (s.total||0) : (by[k]||0);
+    return `<div class="pill"><div class="n">${n}</div><div class="k">${k}</div></div>`;
+  }).join('');
+}
+
+function itemCard(m, score){
+  const scoreHtml = (score!=null) ? `<span class="tag">score ${score}</span>` : '';
+  return `<div class="item" data-id="${m.id}">
+    <div class="meta">
+      <span class="tag ${m.layer}">${m.layer}</span>
+      <span class="id">#${m.id}</span>
+      ${scoreHtml}
+      <button class="secondary" style="padding:6px 10px;margin-left:auto" onclick="editItem('${m.id}')">Edit</button>
+      <button class="danger" style="padding:6px 10px" onclick="forgetItem('${m.id}')">Forget</button>
+    </div>
+    <div class="content">${escapeHtml(m.content)}</div>
+  </div>`;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function refresh(){
+  const stats = await api('/api/stats');
+  renderStats(stats);
+  const list = await api('/api/list?limit=50');
+  const items = list.items || [];
+  $('list').innerHTML = items.length ? items.map(m => itemCard(m)).join('') : '<div class="hint">No memories yet — write one on the left.</div>';
+}
+
+$('btnRemember').onclick = async () => {
+  const content = $('content').value.trim();
+  if(!content){ flash('Add some content first'); return; }
+  const body = {
+    content,
+    layer: $('layer').value,
+    importance: parseFloat($('importance').value || '0.7')
+  };
+  const out = await api('/api/remember', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  if(out.ok){ flash(`Stored #${out.memory.id} in ${out.memory.layer}`); $('content').value=''; refresh(); }
+  else flash(out.error || 'failed');
+};
+
+$('btnSearch').onclick = async () => {
+  const q = $('query').value.trim();
+  const out = await api('/api/search?q=' + encodeURIComponent(q));
+  const results = out.results || [];
+  $('list').innerHTML = results.length
+    ? results.map(r => itemCard(r, r.score)).join('')
+    : '<div class="hint">No matches — try another phrasing, or remember a fact first.</div>';
+  flash(`Recall recomputed · ${results.length} hit(s) for “${q || '∅'}”`);
+};
+
+$('btnRefresh').onclick = refresh;
+
+$('btnDemoFill').onclick = async () => {
+  const samples = [
+    {content:'Caesar (Jiachen Xie) uses GitHub er-s-an for contest repos.', layer:'semantic', importance:0.9},
+    {content:'Preferred timezone is Asia/Shanghai (UTC+8).', layer:'semantic', importance:0.8},
+    {content:'User: ship MeterBuy demo\nAssistant: Deployed to meterbuy.vercel.app', layer:'episodic', importance:0.5},
+    {content:'Scratch: check Hermes plugin doctor before catalog PR', layer:'working', importance:0.4},
+  ];
+  for (const s of samples){
+    await api('/api/remember', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(s)});
+  }
+  flash('Sample facts loaded — try searching “timezone” or “GitHub”');
+  refresh();
+};
+
+window.editItem = async (id) => {
+  const next = prompt('New content for #' + id);
+  if(next==null || !next.trim()) return;
+  const out = await api('/api/update', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({memory_id:id, content:next.trim()})});
+  if(out.ok){ flash(`Updated #${id} — search will recompute`); refresh(); }
+  else flash(out.error || 'update failed');
+};
+
+window.forgetItem = async (id) => {
+  if(!confirm('Forget #' + id + '?')) return;
+  const out = await api('/api/forget', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({memory_id:id})});
+  flash(out.ok ? `Forgot #${id}` : (out.error || 'failed'));
+  refresh();
+};
+
+refresh();
+</script>
+</body>
+</html>
