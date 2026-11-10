@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>RecallLayer · onetake</title>
+<script src="motion.js"></script>
+<style>
+  :root {
+    --bg: #070b16;
+    --ink: #e8eefc;
+    --muted: #93a0c2;
+    --accent: #6ea8ff;
+    --mint: #7dffb3;
+    --warn: #ffb86b;
+    --danger: #ff6b8a;
+    --panel: #121a2f;
+    --line: #243056;
+  }
+  html, body { margin:0; width:1920px; height:1080px; overflow:hidden; background:var(--bg); color:var(--ink);
+    font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif; }
+  #stage { position:absolute; inset:0; }
+  #fx { position:absolute; inset:0; pointer-events:none; }
+  .layer { position:absolute; inset:0; }
+  .word {
+    position:absolute; left:50%; top:42%; transform:translate(-50%,-50%);
+    font-weight:750; letter-spacing:-.03em; white-space:nowrap; color:var(--ink);
+  }
+  .subword { position:absolute; left:50%; top:52%; transform:translate(-50%,-50%);
+    color:var(--muted); font-size:36px; font-weight:500; }
+  .mark {
+    position:absolute; left:50%; top:40%; width:120px; height:120px; margin-left:-60px; margin-top:-60px;
+    border-radius:28px; background:linear-gradient(135deg,#6ea8ff,#9b7bff); display:flex; align-items:center; justify-content:center;
+    font-size:54px; font-weight:800; color:#081018; box-shadow:0 20px 60px rgba(110,168,255,.35);
+  }
+  .sandbox {
+    position:absolute; left:160px; top:90px; width:1600px; height:900px;
+    border-radius:24px; background:linear-gradient(180deg,#121a2f,#182240);
+    border:1px solid var(--line); box-shadow:0 30px 80px rgba(0,0,0,.45); overflow:hidden;
+  }
+  .sb-head {
+    display:flex; align-items:center; justify-content:space-between; padding:22px 28px;
+    border-bottom:1px solid var(--line); background:#0d1428;
+  }
+  .sb-head h1 { margin:0; font-size:28px; }
+  .badge { font-size:14px; padding:8px 14px; border-radius:999px; border:1px solid rgba(110,168,255,.35); color:#cfe0ff; background:rgba(110,168,255,.1); }
+  .sb-body { display:grid; grid-template-columns: 1.05fr .95fr; height:calc(100% - 78px); }
+  .pane { padding:22px 26px; }
+  .pane + .pane { border-left:1px solid var(--line); }
+  .label { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:10px 0 8px; }
+  .field, .area {
+    width:100%; background:#0d1428; border:1px solid var(--line); border-radius:14px; color:var(--ink);
+    padding:14px 16px; font-size:22px; box-sizing:border-box;
+  }
+  .area { min-height:110px; line-height:1.4; }
+  .btnrow { display:flex; gap:12px; margin-top:16px; }
+  .btn {
+    border:0; border-radius:14px; padding:14px 18px; font-size:18px; font-weight:700; color:#081018;
+    background:linear-gradient(135deg,#6ea8ff,#9b7bff);
+  }
+  .btn.sec { background:#223055; color:#dbe6ff; }
+  .btn.danger { background:linear-gradient(135deg,#ff6b8a,#ff8f6b); }
+  .stats { display:flex; gap:10px; margin-bottom:14px; }
+  .pill { flex:1; background:#0d1428; border:1px solid var(--line); border-radius:14px; padding:12px; }
+  .pill .n { font-size:28px; font-weight:750; }
+  .pill .k { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .list { display:flex; flex-direction:column; gap:12px; }
+  .card {
+    background:#0d1428; border:1px solid var(--line); border-radius:16px; padding:14px 16px;
+    position:relative;
+  }
+  .card .meta { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .tag { font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid #7dffb355; color:#b9ffd8; }
+  .id { font-family:ui-monospace,Menlo,monospace; font-size:13px; color:var(--muted); }
+  .content { font-size:20px; line-height:1.4; white-space:pre-wrap; }
+  .empty { color:var(--muted); font-size:20px; padding:28px 8px; }
+  .flash {
+    margin-top:14px; padding:12px 14px; border-radius:12px; background:#102318; border:1px solid #24553a; color:#b9ffd8;
+    font-size:18px; opacity:0;
+  }
+  .hand {
+    position:absolute; width:28px; height:28px; margin-left:-8px; margin-top:-4px;
+    border-radius:50% 50% 50% 5%; background:#fff; border:2px solid #6ea8ff;
+    box-shadow:0 8px 24px rgba(0,0,0,.4); z-index:20; pointer-events:none;
+  }
+  .glow {
+    position:absolute; border-radius:18px; border:2px solid rgba(125,255,179,.85);
+    box-shadow:0 0 0 6px rgba(125,255,179,.12), 0 0 28px rgba(125,255,179,.35);
+    pointer-events:none; z-index:15;
+  }
+  .end {
+    position:absolute; left:50%; top:46%; transform:translate(-50%,-50%); text-align:center;
+  }
+  .end .title { font-size:72px; font-weight:800; letter-spacing:-.03em; }
+  .end .cmd {
+    margin-top:22px; display:inline-block; font-family:ui-monospace,Menlo,monospace; font-size:28px;
+    background:#0d1428; border:1px solid var(--line); border-radius:14px; padding:16px 22px; color:#cfe0ff;
+  }
+  .end .by { margin-top:18px; color:var(--muted); font-size:24px; }
+  .caption {
+    position:absolute; left:50%; bottom:48px; transform:translateX(-50%);
+    max-width:1500px; text-align:center; font-size:28px; color:#e8eefc;
+    text-shadow:0 2px 12px rgba(0,0,0,.65); opacity:0;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="fx" width="1920" height="1080"></canvas>
+
+  <div id="hook" class="layer">
+    <div class="word" id="hookWord" style="font-size:96px">Agents forget</div>
+    <div class="subword" id="hookSub">across sessions and channels</div>
+  </div>
+
+  <div id="title" class="layer" style="opacity:0">
+    <div class="mark" id="logo">R</div>
+    <div class="word" id="titleWord" style="top:58%; font-size:78px">RecallLayer</div>
+    <div class="subword" id="titleSub" style="top:68%">Native Hermes Memory Provider</div>
+  </div>
+
+  <div id="sandboxWrap" class="layer" style="opacity:0">
+    <div class="sandbox" id="sandbox">
+      <div class="sb-head">
+        <h1>RecallLayer · Live Memory Sandbox</h1>
+        <div class="badge">local SQLite · FTS5 · zero API key</div>
+      </div>
+      <div class="sb-body">
+        <div class="pane">
+          <div class="label">Fact / note</div>
+          <div class="area" id="area"></div>
+          <div class="btnrow">
+            <button class="btn" id="btnRemember">Remember</button>
+            <button class="btn sec" id="btnSearch">Search</button>
+            <button class="btn danger" id="btnForget">Forget</button>
+          </div>
+          <div class="label">Query</div>
+          <div class="field" id="query"></div>
+          <div class="flash" id="flash"></div>
+        </div>
+        <div class="pane">
+          <div class="stats">
+            <div class="pill"><div class="n" id="nSem">0</div><div class="k">semantic</div></div>
+            <div class="pill"><div class="n" id="nEpi">0</div><div class="k">episodic</div></div>
+            <div class="pill"><div class="n" id="nWork">0</div><div class="k">working</div></div>
+            <div class="pill"><div class="n" id="nTot">0</div><div class="k">total</div></div>
+          </div>
+          <div class="list" id="list"><div class="empty" id="empty">No memories yet — write one on the left.</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="hand" id="hand" style="opacity:0"></div>
+    <div class="glow" id="glow" style="opacity:0"></div>
+  </div>
+
+  <div id="end" class="layer" style="opacity:0">
+    <div class="end">
+      <div class="title">RecallLayer</div>
+      <div class="cmd">hermes config set memory.provider recalllayer</div>
+      <div class="by">by Caesar · github.com/er-s-an/recalllayer</div>
+    </div>
+  </div>
+
+  <div class="caption" id="caption"></div>
+</div>
+<script>
+const OM = window.OM;
+const DUR = 36.3;
+const FACT1 = "Preferred timezone is Asia/Shanghai (UTC+8).";
+const FACT2 = "Preferred timezone is UTC — travel week.";
+const Q1 = "timezone";
+const TL = [
+  {start:0.60, dur:2.81, text:"Agents forget across sessions."},
+  {start:3.86, dur:5.50, text:"RecallLayer is a native Hermes Memory Provider — not a skill, not a prompt."},
+  {start:9.80, dur:3.38, text:"Write a durable fact into semantic memory."},
+  {start:13.64, dur:4.08, text:"Search again — retrieve-after-write recomputes instantly."},
+  {start:18.17, dur:5.04, text:"Update the fact. Search again — the new text wins."},
+  {start:23.66, dur:3.62, text:"Forget it. The store is empty."},
+  {start:27.73, dur:4.54, text:"Install into Hermes, set memory.provider to recalllayer."},
+  {start:32.72, dur:2.40, text:"RecallLayer by Caesar."},
+];
+
+const el = (id) => document.getElementById(id);
+const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+const mix = (a,b,t)=>a+(b-a)*t;
+const ease = (t)=>{ t=clamp(t,0,1); return t*t*(3-2*t); };
+
+function typeText(full, u) {
+  const n = Math.floor(clamp(u,0,1) * full.length);
+  return full.slice(0, n) + (u>0 && u<1 ? "▌" : "");
+}
+
+function setStats(sem, epi, work) {
+  el("nSem").textContent = sem;
+  el("nEpi").textContent = epi;
+  el("nWork").textContent = work;
+  el("nTot").textContent = sem+epi+work;
+}
+
+function setCard(content, score) {
+  const list = el("list");
+  if (!content) {
+    list.innerHTML = '<div class="empty" id="empty">No matches — store empty after forget.</div>';
+    return null;
+  }
+  list.innerHTML = `<div class="card" id="memCard">
+    <div class="meta"><span class="tag">semantic</span><span class="id">#a1b2c3d4e5f6</span>
+    ${score!=null?`<span class="tag">score ${score}</span>`:""}</div>
+    <div class="content">${content}</div>
+  </div>`;
+  return el("memCard");
+}
+
+function flash(msg, on) {
+  const f = el("flash");
+  f.textContent = msg;
+  f.style.opacity = on ? 1 : 0;
+}
+
+function handAt(x, y, op) {
+  const h = el("hand");
+  h.style.opacity = op;
+  h.style.left = x + "px";
+  h.style.top = y + "px";
+}
+
+function glowBox(r, op) {
+  const g = el("glow");
+  if (!r) { g.style.opacity = 0; return; }
+  g.style.opacity = op;
+  g.style.left = r.x + "px";
+  g.style.top = r.y + "px";
+  g.style.width = r.w + "px";
+  g.style.height = r.h + "px";
+}
+
+function captionAt(t) {
+  const c = el("caption");
+  let cur = null;
+  for (const L of TL) {
+    if (t >= L.start && t <= L.start + L.dur + 0.15) cur = L;
+  }
+  if (!cur) { c.style.opacity = 0; return; }
+  c.textContent = cur.text;
+  const u = (t - cur.start) / cur.dur;
+  c.style.opacity = u < 0.08 ? ease(u/0.08) : (u > 0.92 ? ease((1-u)/0.08) : 1);
+}
+
+function seek(t) {
+  t = clamp(t, 0, DUR);
+  const fx = el("fx");
+  const ctx = fx.getContext("2d");
+  ctx.clearRect(0,0,1920,1080);
+  // faint lattice
+  ctx.strokeStyle = "rgba(110,168,255,0.05)";
+  ctx.lineWidth = 1;
+  for (let x=0;x<1920;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,1080);ctx.stroke();}
+  for (let y=0;y<1080;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(1920,y);ctx.stroke();}
+
+  // --- phases ---
+  // 0-3.6 hook
+  const hookOp = t < 2.6 ? 1 : (t < 3.6 ? 1 - ease((t-2.6)/1.0) : 0);
+  el("hook").style.opacity = hookOp;
+  if (hookOp > 0) {
+    const rise = ease(clamp(t/0.7,0,1));
+    el("hookWord").style.transform = `translate(-50%,-50%) translateY(${mix(40,0,rise)}px)`;
+    el("hookWord").style.opacity = rise;
+    el("hookSub").style.opacity = ease(clamp((t-0.5)/0.6,0,1));
+  }
+
+  // 2.8-9.5 title
+  const titleIn = ease(clamp((t-2.8)/0.8,0,1));
+  const titleOut = t < 8.6 ? 1 : (t < 9.5 ? 1-ease((t-8.6)/0.9) : 0);
+  el("title").style.opacity = titleIn * titleOut;
+  if (titleIn*titleOut > 0) {
+    const s = mix(0.7, 1, titleIn);
+    el("logo").style.transform = `scale(${s})`;
+    el("titleWord").style.opacity = ease(clamp((t-3.4)/0.5,0,1));
+    el("titleSub").style.opacity = ease(clamp((t-3.9)/0.5,0,1));
+  }
+
+  // sandbox from ~8.8 to 27.5
+  const sbIn = ease(clamp((t-8.8)/0.9,0,1));
+  const sbOut = t < 27.0 ? 1 : (t < 28.2 ? 1-ease((t-27.0)/1.2) : 0);
+  el("sandboxWrap").style.opacity = sbIn * sbOut;
+
+  // end card from 27.2
+  const endIn = ease(clamp((t-27.2)/0.8,0,1));
+  el("end").style.opacity = endIn;
+
+  // sandbox interaction state machine
+  let handOp = 0, hx = 900, hy = 520;
+  glowBox(null, 0);
+
+  if (sbIn * sbOut > 0.05) {
+    // default empty
+    let area = "", query = "", flashMsg = "", flashOn = 0;
+    let sem = 0, content = null, score = null;
+
+    // WRITE 9.8 - 13.4
+    if (t >= 9.8 && t < 13.5) {
+      const u = clamp((t-9.9)/2.4, 0, 1);
+      area = typeText(FACT1, u);
+      handOp = ease(clamp((t-9.85)/0.25,0,1));
+      hx = 420; hy = 320;
+      if (t > 12.4) {
+        // click Remember
+        const press = clamp((t-12.45)/0.2,0,1);
+        hx = 280; hy = 430;
+        if (press > 0.3) {
+          sem = 1; content = FACT1; flashMsg = "Stored #a1b2c3d4e5f6 in semantic"; flashOn = 1;
+        }
+      }
+    }
+
+    // SEARCH 13.5 - 18.0
+    if (t >= 13.5 && t < 18.1) {
+      sem = 1; content = FACT1;
+      const u = clamp((t-13.7)/1.2,0,1);
+      query = typeText(Q1, u);
+      handOp = 1; hx = 480; hy = 560;
+      if (t > 15.2) {
+        hx = 430; hy = 430; // Search btn
+        if (t > 15.5) {
+          score = 0.98; flashMsg = 'Recall recomputed · 1 hit(s) for “timezone”'; flashOn = 1;
+          // glow on card
+          glowBox({x: 980, y: 280, w: 700, h: 140}, ease(clamp((t-15.6)/0.3,0,1)));
+        }
+      }
+      area = FACT1;
+    }
+
+    // UPDATE 18.1 - 23.5
+    if (t >= 18.1 && t < 23.6) {
+      sem = 1;
+      area = FACT1;
+      query = Q1;
+      handOp = 1;
+      if (t < 20.2) {
+        // edit content
+        const u = clamp((t-18.3)/1.6,0,1);
+        content = typeText(FACT2, Math.max(u, 0.001));
+        if (u >= 1) content = FACT2;
+        hx = 420; hy = 320;
+        flashMsg = "Updated #a1b2c3d4e5f6 — search will recompute"; flashOn = t>19.6?1:0;
+      } else {
+        content = FACT2;
+        const u = clamp((t-20.4)/1.0,0,1);
+        query = typeText(Q1, u);
+        hx = 480; hy = 560;
+        if (t > 21.6) {
+          hx = 430; hy = 430;
+          score = 0.97; flashMsg = 'Recall recomputed · “UTC” wins'; flashOn = 1;
+          glowBox({x: 980, y: 280, w: 700, h: 140}, 1);
+        }
+      }
+    }
+
+    // FORGET 23.6 - 27.0
+    if (t >= 23.6 && t < 27.1) {
+      area = FACT2; query = Q1;
+      handOp = 1; hx = 560; hy = 430; // Forget
+      if (t < 24.3) {
+        sem = 1; content = FACT2; score = 0.97;
+      } else {
+        sem = 0; content = null;
+        flashMsg = "Forgot #a1b2c3d4e5f6"; flashOn = 1;
+        // dissolve: empty list
+      }
+    }
+
+    el("area").textContent = area;
+    el("query").textContent = query;
+    setStats(sem, 0, 0);
+    setCard(content, score);
+    flash(flashMsg, flashOn);
+    handAt(hx, hy, handOp * sbIn * sbOut);
+  } else {
+    handAt(0,0,0);
+  }
+
+  captionAt(t);
+}
+
+window.__meta = { dur: DUR, fps: 30, inFrame: [] };
+window.__seek = async function(t){ seek(t); };
+window.__ready = Promise.resolve();
+window.__motion = function(t0,t1){ return 120; }; // modest travel for shutter samples
+window.__events = function(){
+  return [
+    {t:0.7, kind:"air"},
+    {t:3.2, kind:"glass"},
+    {t:9.0, kind:"wood"},
+    {t:12.5, kind:"wood"},
+    {t:15.5, kind:"glass"},
+    {t:19.8, kind:"wood"},
+    {t:21.8, kind:"glass"},
+    {t:24.2, kind:"sub"},
+    {t:27.5, kind:"air"},
+    {t:32.8, kind:"glass"},
+  ];
+};
+
+// preview helper
+if (location.search.includes("play")) {
+  let t0 = performance.now();
+  const loop = () => {
+    const t = ((performance.now()-t0)/1000) % DUR;
+    seek(t);
+    requestAnimationFrame(loop);
+  };
+  loop();
+} else {
+  seek(Number(new URLSearchParams(location.search).get("t")||0));
+}
+</script>
+</body>
+</html>

@@ -7,3 +7,11 @@ __pycache__/
 .hermes-home-test/
 dist/
 *.egg-info/
+onetake/**/*.mp3
+onetake/**/*.wav
+onetake/**/*.mp4
+onetake/vo/_mix/
+onetake/still_*.png
+onetake/stills_probe.png
+onetake/*.log
+.venv/

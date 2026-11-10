@@ -1,0 +1,8 @@
+Agents forget across sessions.
+RecallLayer is a native Hermes Memory Provider — not a skill, not a prompt.
+Write a durable fact into semantic memory.
+Search again — retrieve-after-write recomputes instantly.
+Update the fact. Search again — the new text wins.
+Forget it. The store is empty.
+Install into Hermes, set memory.provider to recalllayer.
+RecallLayer by Caesar.

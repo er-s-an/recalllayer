@@ -1,0 +1,61 @@
+{
+  "dur": 36.318,
+  "lines": [
+    {
+      "i": 1,
+      "file": "line-01.mp3",
+      "start": 0.6,
+      "dur": 2.808,
+      "text": "Agents forget across sessions."
+    },
+    {
+      "i": 2,
+      "file": "line-02.mp3",
+      "start": 3.858,
+      "dur": 5.496,
+      "text": "RecallLayer is a native Hermes Memory Provider \u2014 not a skill, not a prompt."
+    },
+    {
+      "i": 3,
+      "file": "line-03.mp3",
+      "start": 9.804,
+      "dur": 3.384,
+      "text": "Write a durable fact into semantic memory."
+    },
+    {
+      "i": 4,
+      "file": "line-04.mp3",
+      "start": 13.638,
+      "dur": 4.08,
+      "text": "Search again \u2014 retrieve-after-write recomputes instantly."
+    },
+    {
+      "i": 5,
+      "file": "line-05.mp3",
+      "start": 18.168,
+      "dur": 5.04,
+      "text": "Update the fact. Search again \u2014 the new text wins."
+    },
+    {
+      "i": 6,
+      "file": "line-06.mp3",
+      "start": 23.658,
+      "dur": 3.624,
+      "text": "Forget it. The store is empty."
+    },
+    {
+      "i": 7,
+      "file": "line-07.mp3",
+      "start": 27.732,
+      "dur": 4.536,
+      "text": "Install into Hermes, set memory.provider to recalllayer."
+    },
+    {
+      "i": 8,
+      "file": "line-08.mp3",
+      "start": 32.718,
+      "dur": 2.4,
+      "text": "RecallLayer by Caesar."
+    }
+  ]
+}
